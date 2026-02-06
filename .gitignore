@@ -1,0 +1,7 @@
+out
+database
+.env*
+!.env.example
+cmd
+Makefile
+.DS_Store

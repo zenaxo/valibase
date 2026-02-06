@@ -1,0 +1,32 @@
+// Schema helpers
+type CreateSchemaOf<N extends CollectionNameKey> = CollectionsMap[N]['create'];
+type UpdateSchemaOf<N extends CollectionNameKey> = CollectionsMap[N]['update'];
+
+// Record type for a given collection name key
+export type RecordOf<N extends CollectionNameKey> = ResponseTypes[N];
+
+// Type of the payload for create operations
+export type Create<N extends CollectionNameKey> = v.InferOutput<CreateSchemaOf<N>>;
+
+// Type of the payload for update operations
+export type Update<N extends CollectionNameKey> = v.InferOutput<UpdateSchemaOf<N>>;
+
+/**
+ * # TypedPocketBase
+ * - Automatic schema generation
+ * - Run time validation
+ * - Includes validation through valibot
+ * ### Usage:
+ *
+ * 		import type { TypedPocketBase } from '.../path-to-database.ts'
+ *
+ * 		const pb = new PocketBase(PUBLIC_PB) as TypedPocketBase
+ *
+ *		// Returns User
+ * 		const users = pb.collection('users').getOne()
+ *
+ */
+export type TypedPocketBase = {
+	collection<T extends CollectionNameKey>(idOrName: T): RecordService<ResponseTypes[T]>;
+} & PocketBase;
+

@@ -1,0 +1,222 @@
+export const collectionIdSchema = v.pipe(
+	v.string(),
+	v.length(15),
+	v.brand('CollectionId')
+);
+export const recordIdSchema = v.pipe(
+	v.string(),
+	v.length(15),
+	v.brand('RecordId')
+);
+
+export const isoDateStringSchema = v.pipe(
+	v.string(),
+	v.isoTimestamp(),
+	v.brand('Date')
+);
+export const isoAutoDateStringSchema = v.pipe(
+	v.string(),
+	v.isoTimestamp(),
+	v.brand('AutoDate')
+);
+
+// Basic primitives
+export const emailSchema = v.pipe(
+	v.string(),
+	v.email('Please enter a valid email address'),
+	v.brand('Email')
+);
+export const fileNameSchema = v.pipe(v.string(), v.brand('FileName'));
+export const fileNameArraySchema = v.array(fileNameSchema);
+export const fileSchema = v.pipe(v.file(), v.brand('File'));
+export const fileArraySchema = v.array(fileSchema);
+
+export const geoPointSchema = v.pipe(
+	v.object({
+		lon: v.number(),
+		lat: v.number()
+	}),
+	v.brand('GeoPoint')
+);
+
+export const editorSchema = v.pipe(v.string(), v.brand('Editor'));
+export const jsonSchema = v.pipe(v.string(), v.brand('JSON'));
+export const urlSchema = v.pipe(
+	v.string(),
+	v.nonEmpty(),
+	v.url('The url is badly formatted.'),
+	v.brand('URL')
+);
+
+// PocketBase returns undefined fields as an empty string, this handles this issue and converts to undefined
+const optionalTextResponse = <
+	I extends string,
+	O extends string | undefined,
+	E extends v.BaseIssue<unknown>
+>(
+	schema: v.BaseSchema<I, O, E>
+) =>
+	v.pipe(
+		v.union([v.literal(''), schema]),
+		v.transform((input) => (input !== '' ? input : undefined))
+	);
+
+// Restrict URLs to a fixed allow-list of hostnames
+export const onlyDomains = <T extends readonly [string, ...string[]]>(...domains: T) =>
+	v.pipe(
+		v.string(),
+		v.nonEmpty(),
+		v.url('The url is badly formatted'),
+		v.brand('OnlyDomains'),
+		v.check(
+			(input) => {
+				let hostname: string;
+				try {
+					hostname = new URL(input).hostname;
+				} catch {
+					return false;
+				}
+				return domains.some((d) => hostname === d || hostname.endsWith(`.${d}`));
+			},
+			`The URL must be one of: ${domains.join(', ')}`
+		)
+	);
+
+// Forbid URLs that match a blocked list of hostnames
+export const exceptDomains = <T extends readonly [string, ...string[]]>(...domains: T) =>
+	v.pipe(
+		v.string(),
+		v.nonEmpty(),
+		v.url('The url is badly formatted'),
+		v.brand('ExceptDomains'),
+		v.check(
+			(input) => {
+				let hostname: string;
+				try {
+					hostname = new URL(input).hostname;
+				} catch {
+					return false;
+				}
+				return !domains.some((d) => hostname === d || hostname.endsWith(`.${d}`));
+			},
+			`The URL must not be any one of: ${domains.join(', ')}`
+		)
+	);
+
+export type CollectionId = v.InferOutput<typeof collectionIdSchema>;
+export type RecordId = v.InferOutput<typeof recordIdSchema>;
+export type IsoAutoDate = v.InferOutput<typeof isoAutoDateStringSchema>;
+export type IsoDate = v.InferOutput<typeof isoDateStringSchema>;
+export type Email = v.InferOutput<typeof emailSchema>;
+export type FileName = v.InferOutput<typeof fileNameSchema>;
+export type FileNameArray = v.InferOutput<typeof fileNameArraySchema>;
+export type File = v.InferOutput<typeof fileSchema>;
+export type FileArray = v.InferOutput<typeof fileArraySchema>;
+export type GeoPoint = v.InferOutput<typeof geoPointSchema>;
+export type Editor = v.InferOutput<typeof editorSchema>;
+export type JSON = v.InferOutput<typeof jsonSchema>;
+export type URL = v.InferOutput<typeof urlSchema>;
+
+export type Expand<E extends object> = {
+	expand?: E;
+};
+export type OAuth2Providers<P extends Array<string>> = {
+	oauth2Providers: P;
+};
+
+/* =========================================
+ * Generic helpers
+ * =======================================*/
+
+// Wraps schema in v.optional, keeps type inference intact
+export const optional = <I, O, E extends v.BaseIssue<unknown>>(
+	schema: v.BaseSchema<I, O, E>
+) => v.optional(schema);
+
+// Tiny helper for string enums using a picklist
+export const stringEnum = <T extends readonly [string, ...string[]]>(...values: T) =>
+	v.picklist(values);
+
+/* =========================================
+ * System fields + auth/common helpers
+ * =======================================*/
+
+const systemFieldsSchema = <N extends CollectionName>(name: N) =>
+	v.pipe(
+		v.object({
+			id: recordIdSchema,
+			collectionId: collectionIdSchema,
+			collectionName: v.literal(name),
+			created: isoAutoDateStringSchema,
+			updated: isoDateStringSchema
+		}),
+		v.brand('SystemFields')
+	);
+
+// Basic password and password-related schemas
+export const passwordSchema = v.pipe(v.string(), v.minLength(8), v.brand('Password'));
+export type Password = v.InferOutput<typeof passwordSchema>;
+
+// Schema used when creating a password + confirmation pair
+export const passwordConfirmSchema = v.pipe(
+	v.object({
+		password: passwordSchema,
+		passwordConfirm: v.string()
+	}),
+	v.forward(
+		v.check((i) => i.password === i.passwordConfirm, 'Passwords do not match'),
+		['passwordConfirm']
+	)
+);
+
+// Schema used when updating a password (optional fields + consistency checks)
+export const newPasswordSchema = v.pipe(
+	v.object({
+		password: v.optional(passwordSchema),
+		passwordConfirm: v.optional(v.string()),
+		oldPassword: v.optional(v.string())
+	}),
+	v.forward(
+		v.check((i) => !i.password || !!i.passwordConfirm, 'Please confirm your new password'),
+		['passwordConfirm']
+	),
+	v.forward(
+		v.check((i) => !i.password || i.password === i.passwordConfirm, 'Passwords do not match'),
+		['passwordConfirm']
+	),
+	v.forward(
+		v.check((i) => !i.password || !!i.oldPassword, 'Old password is required to change password'),
+		['oldPassword']
+	)
+);
+
+// Base schema helpers used by all collections
+export const createBaseSchema = <
+	TEntries extends v.ObjectEntries,
+	TMessage extends v.ErrorMessage<v.ObjectIssue> | undefined
+>(
+	fields: v.ObjectSchema<TEntries, TMessage>
+) => fields;
+
+export const updateBaseSchema = <
+	TEntries extends v.ObjectEntries,
+	TMessage extends v.ErrorMessage<v.ObjectIssue> | undefined
+>(
+	fields: v.ObjectSchema<TEntries, TMessage>
+) => v.partial(fields);
+
+// Auth-aware schema helpers that compose base fields with auth schemas
+export const createAuthSchema = <
+	TEntries extends v.ObjectEntries,
+	TMessage extends v.ErrorMessage<v.ObjectIssue> | undefined
+>(
+	schema: v.ObjectSchema<TEntries, TMessage>
+) => v.intersect([schema, passwordConfirmSchema]);
+
+export const updateAuthSchema = <
+	TEntries extends v.ObjectEntries,
+	TMessage extends v.ErrorMessage<v.ObjectIssue> | undefined
+>(
+	schema: v.ObjectSchema<TEntries, TMessage>
+) => v.intersect([schema, newPasswordSchema]);
+

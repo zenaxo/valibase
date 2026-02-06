@@ -1,0 +1,13 @@
+/**
+ *
+ * This file was automatically @generated and should not be modified
+ *
+ * To use the client, import createTypedPocketBase
+ *
+ */
+
+import type PocketBase from 'pocketbase';
+import type { RecordService } from 'pocketbase';
+
+import * as v from 'valibot';
+
