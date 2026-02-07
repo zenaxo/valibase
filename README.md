@@ -35,7 +35,7 @@ database evolves.
 ```bash
 go get github.com/zenaxo/valibase
 ```
-2. Generate schemas from PocketBase
+### 2. Generate schemas from PocketBase
 
 Integrate Valibase into your PocketBase hooks:
 ```go
@@ -73,7 +73,7 @@ func main() {
 	})
 }
 ```
-3. Use the generated types in TypeScript
+### 3. Use the generated types in TypeScript
 ```ts
 import PocketBase from 'pocketbase'
 import { Collections, type TypedPocketBase, type User } from '../database/database'
