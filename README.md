@@ -15,8 +15,6 @@ database evolves.
 - Generates Valibot input, create, and update schemas
 - Typed PocketBase client wrappers
 - Automatic regeneration when collections change
-- Idiomatic Go API
-- Minimal public surface: one exported entry point
 
 ---
 
@@ -127,7 +125,7 @@ Select
 
 ## Status
 Valibase is on early development and the API may change.
-Feedback and contributions are welcom.
+Feedback and contributions are welcome.
 
 ## License
 MIT
